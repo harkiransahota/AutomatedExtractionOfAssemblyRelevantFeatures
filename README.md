@@ -89,9 +89,11 @@ The pipeline produces:
 
 ## Citation
 
-If you use this code in your work, please cite:
+If you use this code, datasets, or the accompanying rule base in your research, please cite the corresponding publication:
 
-> *Automated Extraction of Assembly-Relevant Features from Mesh-Based CAD Models for Rule-Based Assembly Planning*
+> Harkiran Sahota and Adam Kłodowski.  
+> *Automated Extraction of Assembly-Relevant Features from Mesh-Based CAD Models for Rule-Based Assembly Planning.*  
+> Journal of Intelligent Manufacturing (under review), 2026.
 
 ---
 
