@@ -2,8 +2,6 @@
 % General Rules
 % -----------------------------------
 
-% Boiler -->
-
 has_base(X,COMP):-connection(X), has_connected_component(X,COMP,0).
 
 connection_point(POINT) :- screw_point(POINT) .
@@ -35,12 +33,13 @@ washer(X) :- spring_washer(X) .
 srew(X) :- hex_head_screw(X) .
 nut(X) :- hex_nut(X) .
 
-tool("Socket Wrench",tool_id_wrench).
-tool("Screw Driver Default",tool_id_default).
+tool("Socket Wrench",tool_id_socket_wrench).
+tool("Screw Driver Default",tool_id_default_screw_driver).
 tool("Screw Driver Slotted",tool_id_slotted).
-tool("Screw Driver Hex",tool_id_hex).
 tool("Screw Driver Philips",tool_id_philips).
 tool("Hand",tool_id_hand).
+tool("Allen Wrench",tool_id_allen_wrench).
+default_tool("Screw Driver Default",tool_id_default_screw_driver).
 
 
 %tool(X) :- screw_driver(X) .
@@ -50,10 +49,9 @@ tool("Hand",tool_id_hand).
 is_for("Hand",SCREW) :-  screw(SCREW), has_head(SCREW,_,"hand_grip") .
 is_for("Socket Wrench",SCREW) :- tool("Socket Wrench",_), screw(SCREW), has_head(SCREW,_,"hex") .
 is_for("Socket Wrench",NUT) :- tool("Socket Wrench",_), nut(NUT), has_shape(NUT,"hex") .
-is_for("Screw Driver Philips",SCREW) :- tool("Screw Driver Philips",_),screw(SCREW), has_head(SCREW,_,"pan_head") .
-is_for("Screw Driver Slotted",SCREW) :- tool("Screw Driver Slotted",_),screw(SCREW), has_head(SCREW,_,"cheese_head") .
-is_for("Screw Driver Hex",SCREW) :- tool("Screw Driver Hex",_),screw(SCREW), has_head(SCREW,_,"button_head") .
-is_for("Screw Driver Hex",SCREW) :- tool("Screw Driver Hex",_),screw(SCREW), has_head(SCREW,_,"cap_head") .
+is_for("Screw Driver Philips",SCREW) :- tool("Screw Driver Philips",_),screw(SCREW), has_head(SCREW,_,"Philips") .
+is_for("Screw Driver Slotted",SCREW) :- tool("Screw Driver Slotted",_),screw(SCREW), has_head(SCREW,_,"slot") .
+is_for("Allen Wrench",SCREW) :- tool("Allen Wrench",_),screw(SCREW), has_head(SCREW,_,"allen") .
 
 %torque_with("m6","2","Nm") .
 %torque_with("4.2","1.5","Nm") .
@@ -70,21 +68,19 @@ component(COMP) :- has_matching(X,COMP,Y) .
 % ----------------------------------
 
 %if no is_for is assigned to that screw use default screw driver
-tighten_with(CONN,STEP,COMP,id_default) :- action(tighten,CONN,POINT,COMP,STEP),default_tool("Screw Driver Default",id_default), tool(TOOL,ID), not is_for(TOOL,COMP), not tighten_with(CONN,STEP,COMP,_,_,_) .
+tighten_with(CONN,STEP,COMP,ID) :- action(tighten,CONN,POINT,COMP,STEP),default_tool("Screw Driver Default",ID), tool(TOOL,ID), not is_for(TOOL,COMP), not tighten_with(CONN,STEP,COMP,_,_,_) .
 %else assign according tool from is_for
 tighten_with(CONN,STEP,COMP,ID,SIZE,none) :- action(tighten,CONN,POINT,COMP,STEP), is_for(TOOL,COMP), not is_for("Hand",COMP), tool(TOOL,ID), has_head(COMP,SIZE,_).
 tighten_with(CONN,STEP,COMP,ID,none,none) :- action(tighten,CONN,POINT,COMP,STEP), is_for("Hand",COMP), has_head(COMP,_,_),tool("Hand",ID).
 tighten_with(CONN,STEP,COMP,ID,VALUE,UNIT) :- action(tighten,CONN,POINT,COMP,STEP), tool(TOOL,ID), is_for(TOOL,COMP), has_thread(COMP,TYPE,"mm"), torque_with(TYPE,VALUE,UNIT) .
-
-
-
 #show tighten_with/4 .
 #show tighten_with/6 .
+
 position_on(CONN,STEP,COMP,OBJ,COMP_B,OBJ_B) :- action(position,CONN,POINT,COMP,STEP), has_matching(POINT,COMP,OBJ), has_matching(POINT,COMP_B,OBJ_B), COMP != COMP_B .
 position_on(CONN,STEP,COMP,COMP,OBJ_B,OBJ_B) :- action(position,CONN,POINT,COMP,STEP), has_washer(POINT,COMP), has_screw(POINT,OBJ_B), screw(OBJ_B), COMP != OBJ_B, not has_matching(POINT,OBJ_B,_) .
 position_with(CONN,STEP,COMP,"Hand") :- action(position,CONN,_,COMP,STEP) .
 position_with(CONN,STEP,COMP,"2AK") :- action(position,CONN,_,COMP,STEP), weight(COMP,X), X>100 .
-position_with(CONN,STEP,COMP,"2AK") :- action(position,CONN,_,COMP,STEP), sizw(COMP,X), X>100 .
+position_with(CONN,STEP,COMP,"2AK") :- action(position,CONN,_,COMP,STEP), size(COMP,X), X>100 .
 #show position_on/6 .
 #show position_with/4 .
 
@@ -102,7 +98,7 @@ sub_action(CONN, STEP,0,COMP_1,COMP_2,POINT, "plug in") :- action(plugin,CONN,CO
 plugin_with(CONN,STEP,COMP_2,"Hand") :- action(plugin,CONN,_,COMP_2,STEP) .
 #show plugin_with/4 .
 
-% <-- Boiler
+
 
 % -----------------------------------
 % Processing Rules
@@ -119,33 +115,12 @@ connection_step(0..END-1) :- END = #count{CONN: connection(CONN)} .
 						COMP_C != COMP, STEP_A < STEP_C, STEP_C < STEP_B .
 :- plan_connection(CONN,STEP), start_connection(CONN), STEP > 0 .
 
-%action(assemble,CONN,A,B,STEP) :- plan_connection(CONN,STEP), not requirement(CONN), has_connected_component(CONN,A,_),has_connected_component(CONN,B,_), A!=B, not action(assemble,CONN,B,A,_) . 
-%action(assemble,CONN,A,none,STEP) :- plan_connection(CONN,STEP), not requirement(CONN), has_connected_component(CONN,A,_), #count{P : has_connected_component(CONN,P,_)} = 1. 
-
-%:- action(assemble,CONN,A,B,_),action(assemble,CONN,A2,B2,_),(A,B) != (A2,B2).
-
-action(assemble,CONN,A,B,STEP) :-
-    plan_connection(CONN,STEP),
-    not requirement(CONN),
-    has_connected_component(CONN,A,_),
-    has_connected_component(CONN,B,_),
-    A < B.
-
-action(assemble,CONN,A,none,STEP) :-
-    plan_connection(CONN,STEP),
-    not requirement(CONN),
-    has_connected_component(CONN,A,_),
-    #count{P : has_connected_component(CONN,P,_)} = 1.
-
-:- action(assemble,CONN,A,B,_),
-   action(assemble,CONN,A2,B2,_),
-   (A,B) != (A2,B2).
-
+action(assemble,CONN,none,none,STEP) :- plan_connection(CONN,STEP), not requirement(CONN) . 
 action(execute,CONN,none,none,STEP) :- plan_connection(CONN,STEP), requirement(CONN) . 
 
 
-% Action Rules
-% -----------------------------------
+%Rules
+% ------ Action -----------------------------
 
 action(ACTION,CONN,A,B,SUM + 1 + SUB_STEP) :- action(ACTION,CONN,A,B,STEP_A,SUB_STEP), SUM = #sum{S,STEP : sub_actions(CONN,STEP,S), STEP < STEP_A} .
 optional_info(CONN,SUM + 1 + SUB_STEP,"optional") :- optional_info(CONN,_,STEP_A,SUB_STEP), SUM = #sum{S,STEP : sub_actions(CONN,STEP,S), STEP < STEP_A} .
@@ -175,35 +150,45 @@ screw_connection_end(CONN,END) :- screw_tighten_end(CONN,END) .
 % Position Components Planning Rules
 % -----------------------------------
 
-screw_assemble_start(CONN,STEP) :- screw_connection_start(CONN,STEP) .
-screw_step(CONN,screw_assemble_step(START..COUNT)) :- screw_assemble_start(CONN,START),COUNT == 0, COUNT = #count{COMP : has_connected_component(CONN,COMP,ORDER), ORDER != 0} .
-screw_assemble_end(CONN,COUNT) :- screw_assemble_start(CONN,STEP), COUNT == 0, COUNT = #count{COMP : has_connected_component(CONN,COMP,ORDER), ORDER != 0}.
+conn_component_count(CONN, COUNT) :-COUNT = #count{COMP : has_connected_component(CONN,COMP,ORDER),ORDER!=0},has_connected_component(CONN,_,_).
+	
+single_component_connection(CONN) :-conn_component_count(CONN,0). 
 
-position_screwing_component(CONN,COMP_A,COMP_B,STEP,SUB_STEP) :- screw_step(CONN,screw_assemble_step(STEP)), 
+screw_assemble_start(CONN,STEP) :- screw_connection_start(CONN,STEP) .
+screw_assemble_range(CONN,START,COUNT) :- screw_assemble_start(CONN,START),conn_component_count(CONN, COUNT).
+screw_step_assemble(CONN,START,STEP) :- screw_assemble_range(CONN,START,COUNT), STEP= START..COUNT, not single_component_connection(CONN).
+screw_assemble_end(CONN,COUNT) :- screw_assemble_start(CONN,STEP), conn_component_count(CONN,COUNT).
+
+
+position_screwing_component(CONN,COMP_A,COMP_B,STEP,SUB_STEP-1) :- screw_step_assemble(CONN,STEP,SUB_STEP), 
 												has_connected_component(CONN,COMP_A,SUB_STEP-1), 
 												has_connected_component(CONN,COMP_B,SUB_STEP),
 												has_screw_hole(COMP_A,X),has_screw_hole(COMP_B,X),
-												has_connection_point(CONN,X),
+												has_connection_point(CONN,X,_),
 												component_first_connection(COMP_B,CONN) .
 	
 
-%#show position_screwing_component/5 .	
-
 action(position,CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) :- position_screwing_component(CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) .
 
-sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y), screw_step(CONN,screw_assemble_step(STEP))}, screw_step(CONN,screw_assemble_step(STEP)) .
+sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step_assemble(CONN,START,STEP) .
 
 
 % Screw Point Planning Rules
 % -----------------------------------
 
-screw_insert_start(CONN,STEP) :- screw_assemble_end(CONN,STEP) .
-screw_insert_start(CONN,STEP) :- not screw_assemble_end(CONN,STEP), screw_connection_start(CONN,STEP) .
-screw_step(CONN,screw_insert_step(START..START+END-1)) :- screw_insert_start(CONN,START), END = #count{POINT : has_connection_point(CONN,POINT)} .
-screw_insert_end(CONN,STEP+COUNT) :- screw_insert_start(CONN,STEP), COUNT = #count{POINT : has_connection_point(CONN,POINT)}.
+conn_point_count(CONN, COUNT) :-
+    COUNT = #count{POINT : has_connection_point(CONN,POINT,_)},has_connection_point(CONN,_,_).
 
-1{screw_action(POINT,CONN,STEP): has_connection_point(CONN,POINT)}1 :- screw_step(CONN,screw_insert_step(STEP)) .
-:- screw_action(POINT,CONN,STEP_A), screw_action(POINT,CONN,STEP_B), STEP_A != STEP_B .
+screw_insert_start(CONN,STEP) :- screw_assemble_end(CONN,STEP), single_component_connection(CONN).
+screw_insert_start(CONN,STEP+1) :- screw_assemble_end(CONN,STEP), not single_component_connection(CONN) .
+screw_insert_range(CONN,START,COUNT) :- screw_insert_start(CONN,START), conn_point_count(CONN, COUNT) .
+screw_step_insert(CONN,STEP) :- screw_insert_range(CONN,START,COUNT), STEP=START..START+COUNT-1.
+screw_insert_end(CONN,STEP+COUNT) :- screw_insert_start(CONN,STEP), conn_point_count(CONN, COUNT). 
+
+% 1{screw_action(POINT,CONN,STEP): has_connection_point(CONN,POINT)}1 :- screw_step_insert(CONN,STEP) .
+% :- screw_action(POINT,CONN,STEP_A), screw_action(POINT,CONN,STEP_B), STEP_A != STEP_B .
+
+screw_action(POINT,CONN,STEP) :- has_connection_point(CONN,POINT,SEQ),screw_insert_range(CONN,START,_),STEP = START + SEQ.
 
 
 %if has washer, no plugin nut
@@ -233,18 +218,17 @@ action(insert,CONN,POINT,COMP,STEP,0) :- screw_action(POINT,CONN,STEP), has_scre
 action(turnon,CONN,POINT,COMP,STEP,1) :- screw_action(POINT,CONN,STEP), has_nut(POINT,COMP), not has_washer(POINT,_), not has_pluginnut(POINT,_)  .
 
 
-
-
-sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step(CONN,screw_insert_step(STEP)) .
+sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y), screw_step_insert(CONN,STEP)}, screw_step_insert(CONN,STEP) .
 
 
 % Adjust Planning Rules
 % -----------------------------------
 screw_adjust_start(CONN,STEP+1) :- screw_insert_end(CONN,STEP) .
-screw_step(CONN,screw_adjust_step(START..START+END-1)) :- screw_adjust_start(CONN,START), END = #count{COMP : has_connected_component(CONN,COMP,_)} .
-screw_adjust_end(CONN,STEP+COUNT) :- screw_adjust_start(CONN,STEP), COUNT = #count{COMP : has_connected_component(CONN,COMP,_)} .
+screw_adjust_range(CONN,START,COUNT):-screw_adjust_start(CONN,START), conn_component_count(CONN, COUNT) .
+screw_step_adjust(CONN,STEP) :- screw_adjust_range(CONN,START,COUNT), STEP=START..START+COUNT-1.
+screw_adjust_end(CONN,STEP+COUNT) :- screw_adjust_start(CONN,STEP), conn_component_count(CONN, COUNT) .
 
-1{adjust_action(none,CONN,COMP,STEP,0): has_connected_component(CONN,COMP,_)}1 :- screw_step(CONN,screw_adjust_step(STEP)) .
+1{adjust_action(none,CONN,COMP,STEP,0): has_connected_component(CONN,COMP,_)}1 :- screw_step_adjust(CONN,STEP) .
 
 :- adjust_action(POINT,CONN,COMP,STEP_A,0), adjust_action(POINT,CONN,COMP,STEP_B,0), STEP_A != STEP_B .
 
@@ -252,16 +236,20 @@ screw_adjust_end(CONN,STEP+COUNT) :- screw_adjust_start(CONN,STEP), COUNT = #cou
 action(adjust,CONN,POINT,COMP,STEP,0) :- adjust_action(POINT,CONN,COMP,STEP,0), has_hole(COMP,_,"longhole").
 action(adjust,CONN,POINT,COMP,STEP,0) :- adjust_action(POINT,CONN,COMP,STEP,0), design_part(COMP).
 
-sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step(CONN,screw_adjust_step(STEP)) .
+sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step_adjust(CONN,STEP) .
 
 
 % Tighten Planning Rules
 % -----------------------------------
 screw_tighten_start(CONN,STEP+1) :- screw_adjust_end(CONN,STEP) .
-screw_step(CONN,screw_tighten_step(START..START+END-1)) :- screw_tighten_start(CONN,START), END = #count{POINT : has_connection_point(CONN,POINT)} .
-screw_tighten_end(CONN,STEP+COUNT) :- screw_tighten_start(CONN,STEP), COUNT = #count{POINT : has_connection_point(CONN,POINT)}.
+screw_tighten_range(CONN,START,COUNT):- screw_tighten_start(CONN,START), conn_point_count(CONN, COUNT).
+screw_step_tighten(CONN,STEP) :- screw_tighten_range(CONN,START,COUNT), STEP=START..START+COUNT-1.
+screw_tighten_end(CONN,STEP+COUNT) :- screw_tighten_start(CONN,STEP), conn_point_count(CONN, COUNT).
 
-1{tighten_action(POINT,CONN,STEP,0): has_connection_point(CONN,POINT)}1 :- screw_step(CONN,screw_tighten_step(STEP)) .
+%1{tighten_action(POINT,CONN,STEP,0): has_connection_point(CONN,POINT)}1 :- screw_step_tighten(CONN,STEP) .
+
+tighten_action(POINT,CONN,STEP,0) :-has_connection_point(CONN,POINT,SEQ),screw_tighten_range(CONN,START,_),STEP = START + SEQ.
+
 
 :- tighten_action(POINT,CONN,STEP_A,0), tighten_action(POINT,CONN,STEP_B,0), STEP_A != STEP_B .
 
@@ -269,8 +257,9 @@ screw_tighten_end(CONN,STEP+COUNT) :- screw_tighten_start(CONN,STEP), COUNT = #c
 action(tighten,CONN,POINT,COMP,STEP,0) :- tighten_action(POINT,CONN,STEP,0), has_screw(POINT,COMP), not has_nut(POINT,_).
 action(tighten,CONN,POINT,COMP,STEP,0) :- tighten_action(POINT,CONN,STEP,0), has_nut(POINT,COMP).
 
-sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step(CONN,screw_tighten_step(STEP)) .
+sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step_tighten(CONN,STEP) .
 
+%-------------------------------------------------------------------------------
 
 
 %:Glue_Planning_LP a asp:RuleSet;
@@ -399,3 +388,4 @@ action(stick_on,CONN,COMP_A,COMP_B,STEP,0):- stick_on_part(CONN,COMP_A,COMP_B,ST
 
 %counting number of sub actions 
 sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y), glue_step(CONN,glue_stick_on_step(STEP))}, glue_step(CONN,glue_stick_on_step(STEP)) .
+
