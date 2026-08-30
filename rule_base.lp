@@ -160,15 +160,29 @@ screw_step_assemble(CONN,START,STEP) :- screw_assemble_range(CONN,START,COUNT), 
 screw_assemble_end(CONN,COUNT) :- screw_assemble_start(CONN,STEP), conn_component_count(CONN,COUNT).
 
 
-position_screwing_component(CONN,COMP_A,COMP_B,STEP,SUB_STEP-1) :- screw_step_assemble(CONN,STEP,SUB_STEP), 
-												has_connected_component(CONN,COMP_A,SUB_STEP-1), 
-												has_connected_component(CONN,COMP_B,SUB_STEP),
-												has_screw_hole(COMP_A,X),has_screw_hole(COMP_B,X),
-												has_connection_point(CONN,X,_),
-												component_first_connection(COMP_B,CONN) .
+%position_screwing_component(CONN,COMP_A,COMP_B,STEP,SUB_STEP-1) :- screw_step_assemble(CONN,STEP,SUB_STEP), 
+%												has_connected_component(CONN,COMP_A,SUB_STEP-1), 
+%												has_connected_component(CONN,COMP_B,SUB_STEP),
+%												has_screw_hole(COMP_A,X),has_screw_hole(COMP_B,X),
+%												has_connection_point(CONN,X,_),
+%												component_first_connection(COMP_B,CONN) .
 	
 
-action(position,CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) :- position_screwing_component(CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) .
+%action(position,CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) :- position_screwing_component(CONN_A,COMP_A,COMP_B,STEP,SUB_STEP-1) .
+
+
+action(position,CONN,"",COMP,0,0) :- screw_step_assemble(CONN,0), has_connected_component(CONN,COMP,0).
+action(position,CONN,"",COMP,0,0) :- has_connected_component(CONN,COMP,0), single_component_connection(CONN).
+
+
+%no plugin nuts
+action(position,CONN,COMP_A,COMP_B,SUB_STEP,0) :- screw_step_assemble(CONN,SUB_STEP), has_connected_component(CONN,COMP_B,SUB_STEP),has_connected_component(CONN,COMP_A,SUB_STEP-1), has_connection_point(CONN,POINT,_),not has_pluginnut(POINT,_,COMP_B) .
+
+%with plugin nuts
+action(insert_pluginnut,CONN,COMP_B,PLUGINNUT,SUB_STEP,0) :- screw_step_assemble(CONN,SUB_STEP), has_connected_component(CONN,COMP_B,SUB_STEP),has_connected_component(CONN,COMP_A,SUB_STEP-1), has_connection_point(CONN,POINT,_), has_pluginnut(POINT,PLUGINNUT,COMP_B) .
+action(position,CONN,COMP_A,COMP_B,SUB_STEP,1) :- screw_step_assemble(CONN,SUB_STEP), has_connected_component(CONN,COMP_B,SUB_STEP),has_connected_component(CONN,COMP_A,SUB_STEP-1), has_connection_point(CONN,POINT,_), has_pluginnut(POINT,_,COMP_B) .
+
+
 
 sub_actions(CONN,STEP,S) :- S = #count{Y : action(_,CONN,_,_,STEP,Y)}, screw_step_assemble(CONN,START,STEP) .
 
